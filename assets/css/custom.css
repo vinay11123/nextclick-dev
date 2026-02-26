@@ -1,0 +1,50 @@
+
+/*# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY3VzdG9tLmNzcyIsInNvdXJjZXMiOlsiY3VzdG9tLnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiJ9 */
+
+/*# sourceMappingURL=custom.css.map */
+
+/* product details uploads css*/
+.p-d-uploads .tab-pane{border:2px solid #e5e5e5; min-height: 400px;}
+
+.rupee {
+  content: "\20B9";
+  color: red;
+  font-size: larger;
+}
+
+.file-field.big .file-path-wrapper {
+  height: 3.2rem; }
+  .file-field.big .file-path-wrapper .file-path {
+  height: 3rem; }
+  .navbar-badge {
+    font-size: .6rem;
+    font-weight: 300;
+    padding: 2px 4px;
+    position: absolute;
+    right: 5px;
+    top: 6px;
+}
+
+.notification-icon{
+  font-size: 19px;
+  color: #fff;
+}
+
+.notification-header{
+  text-align: center;
+  padding: 0.1rem 0.5rem;
+}
+
+a.mr-2.text-danger {
+  position: relative;
+  top: -27px !important;
+  left: 12px !important;
+  /* transform: translate(-8px, -15px); */
+  transform: translate(33px, -15px);
+}
+.text-danger>i.far.fa-trash-alt {
+  transform: translate3d(18px, -16px, 13px);
+}
+i.far.fa-trash-alt {
+  padding-top: 13px !important;
+}

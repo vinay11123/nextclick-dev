@@ -1,0 +1,38 @@
+{
+	"name" : "codeigniter/framework",
+	"type" : "project",
+	"homepage" : "https://codeigniter.com",
+	"license" : "MIT",
+	"support" : {
+		"forum" : "http://forum.codeigniter.com/",
+		"wiki" : "https://github.com/bcit-ci/CodeIgniter/wiki",
+		"irc" : "irc://irc.freenode.net/codeigniter",
+		"source" : "https://github.com/bcit-ci/CodeIgniter"
+	},
+	"autoload": {
+        "psr-4": {
+            "MyApp\\": "app"
+        }
+    },
+	"require" : {
+		"php" : ">=5.3.7",
+		"firebase/php-jwt" : "^5.0",
+		"phpoffice/phpspreadsheet" : "^1.11",
+		"mult1mate/cron-manager": "^1.1",
+		"dragonmantank/cron-expression": "^3.1",
+		"guzzlehttp/guzzle": "^7.2",
+		"swiftmailer/swiftmailer": "^6.2",
+		"amphp/amp": "^2.5",
+		"zircote/swagger-php": "^3.1",
+		"cboden/ratchet": "^0.4",
+		"razorpay/razorpay": "2.*"
+	},
+	"suggest" : {
+		"paragonie/random_compat" : "Provides better randomness in PHP 5.x"
+	},
+	"require-dev" : {
+		"mikey179/vfsstream" : "1.1.*",
+		"phpunit/phpunit" : "4.* || 5.*",
+		"kenjis/ci-phpunit-test": "^2.0"
+	}
+}
