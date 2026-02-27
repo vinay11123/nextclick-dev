@@ -1,5 +1,6 @@
     <?php
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class Vendor extends MY_Controller
 {
 
@@ -1322,6 +1323,112 @@ if ($type == 'edit') {
         $this->pagination->initialize($config);
         $this->data['pagination'] = $this->pagination->create_links();
     }
+	
+	
+	
+
+public function download_instock_excel($vendor_user_id = null)
+{
+    // Validate ID
+    if (empty($vendor_user_id) || !is_numeric($vendor_user_id)) {
+        show_error('Invalid Vendor ID');
+    }
+
+$sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variants` where `vendor_user_id`=" . $vendor_user_id;
+        $query = $this->db->query($sql_items);
+        $items = $query->result_array();
+        $item_ids = $items[0]['item_ids'];
+//echo $vendor_user_id; exit;
+    $sql = "
+        SELECT 
+            c.name AS category_name,
+            sc.name AS sub_category_name,
+            fm.name AS menu_name,
+            b.name as brand_name,
+            fi.item_type as product_type,
+            fi.name AS product_name,
+			fsi.name AS varient_name,
+			vpvv.price AS price,
+			vpvv.stock AS stock,
+			vpvv.discount AS discount,
+			tx.tax AS taxp
+        FROM food_sec_item fsi
+        JOIN vendor_product_variants vpvv ON vpvv.section_item_id = fsi.id
+        JOIN food_item fi ON fi.id = fsi.item_id
+        JOIN food_menu fm ON fm.id = fi.menu_id
+        JOIN sub_categories sc ON sc.id = fi.sub_cat_id
+        JOIN categories c ON c.id = sc.cat_id
+		JOIN brands b on b.id=fi.brand_id
+		JOIN food_item_images fii on fii.item_id=fi.id 
+		LEFT JOIN taxes tx on tx.id = vpvv.tax_id
+        WHERE fsi.item_id in (" . $item_ids . ") and 
+         vpvv.vendor_user_id = ?
+        
+    ";
+
+   
+    $query = $this->db->query($sql, array($vendor_user_id));
+    $records = $query->result_array();
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    $headers = [
+        'Category Name',
+        'Sub Category Name',
+        'Menu Name',
+        'Brand Name',
+        'Product Type',
+        'Product Name',
+		'Varient Name',
+		'Price',
+		'Stock',
+		'Discount',
+		'Tax'
+    ];
+
+    $col = 'A';
+    foreach ($headers as $header) {
+        $sheet->setCellValue($col.'1', $header);
+        $col++;
+    }
+
+    $row = 2;
+    foreach ($records as $data) {
+		if($data['product_name'] == "1"){
+			$type = "Veg";
+		}elseif($data['product_name'] == "2"){
+			$type = "NonVeg";
+		}else{
+			$type = "Other";
+		}
+        $sheet->setCellValue('A'.$row, $data['category_name']);
+        $sheet->setCellValue('B'.$row, $data['sub_category_name']);
+        $sheet->setCellValue('C'.$row, $data['menu_name']);
+        $sheet->setCellValue('D'.$row, $data['brand_name']);
+        $sheet->setCellValue('E'.$row, $type);
+        $sheet->setCellValue('F'.$row, $data['product_name']);
+        $sheet->setCellValue('G'.$row, $data['varient_name']);
+		$sheet->setCellValue('H'.$row, $data['price']);
+		$sheet->setCellValue('I'.$row, $data['stock']);
+		$sheet->setCellValue('J'.$row, $data['discount']);
+		$sheet->setCellValue('K'.$row, $data['taxp']);
+        $row++;
+    }
+
+    $filename = 'Products_list_'.time().'.xlsx';
+
+    // 🔥 VERY IMPORTANT FIX
+    ob_end_clean(); // clear output buffer
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="'.$filename.'"');
+    header('Cache-Control: max-age=0');
+    header('Pragma: public');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
+}
 
 	        
 }

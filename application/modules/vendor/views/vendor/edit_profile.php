@@ -118,9 +118,13 @@ h2.card-title.ven.subcategory {
 
 <div class="container">
     <div class="row">
+	
         <div class="col-md-12" style="">
             <form id="form_site_settings" action="<?php echo base_url('vendor_profile/profile');?>" method="post" class="needs-validation reset"  enctype="multipart/form-data">
                 <input type="hidden" name="page" value="<?php echo $this->input->get('page') ; ?>">
+				<?php 
+//echo $vendor_details['vendor_user_id'];
+//var_dump($vendor_details); ?>
                 <section class="card">
                     <header class="card-header">
                         <div class="card-actions">
@@ -131,7 +135,10 @@ h2.card-title.ven.subcategory {
                     </header>
                     <div class="row bordercfw">
             <div class="col-md-3">
-                <div class="profile-work"></div>
+                <div class="profile-work">&nbsp;&nbsp;&nbsp;&nbsp;<a href="<?php echo base_url('vendor/download_instock_excel/'.$vendor_details['vendor_user_id']); ?>" 
+   class="btn btn-info">
+   Download Excel
+</a></div>
             </div>
             <div class="col-md-8">
             <div class="row bordercfw">
