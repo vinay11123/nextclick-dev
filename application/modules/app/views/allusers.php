@@ -329,9 +329,11 @@ $('#sendNotification').on('click', function (e) {
         },
         success: function (response) {
             alert(response.message);
+			location.reload(); 
         },
         error: function () {
             alert("Something went wrong!");
+			location.reload(); 
         },
         complete: function () {
             $('#sendNotification').prop('disabled', false).text('Send Notification');
