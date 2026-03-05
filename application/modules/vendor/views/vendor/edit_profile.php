@@ -115,10 +115,32 @@ h2.card-title.ven.subcategory {
    
     </div>
     </div>   
+<?php if($this->session->flashdata('upload_bulk_status')): 
+$msg = $this->session->flashdata('upload_bulk_status'); ?>
 
+<div class="alert <?php echo isset($msg['success']) ? 'alert-success' : 'alert-danger'; ?> alert-dismissible fade show">
+    <?php echo isset($msg['success']) ? $msg['success'] : $msg['error']; ?>
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+</div>
+
+<?php endif; ?>
 <div class="container">
     <div class="row">
-	
+	<form action="<?php echo base_url('vendor/vendor_products_bulk_upload'); ?>" 
+              method="post" 
+              enctype="multipart/form-data">
+              
+				<input type="hidden" name="vendor_user_id" 
+					   value="<?php echo $vendor_details['vendor_user_id']; ?>">
+				<label>Upload Excel</label>
+				<input type="file" name="excel_file" 
+					   class="form-control mb-2" required>
+					   <label>Upload Images ZIP</label>
+				<input type="file" name="images_zip" 
+					   class="form-control mb-2" >
+				<span style="color:red;">For Uploading New products please upload images zip </span></br>
+				<button type="submit" name="import" class="btn btn-primary" style="margin-top: 15px;">Import</button>
+			</form>
         <div class="col-md-12" style="">
             <form id="form_site_settings" action="<?php echo base_url('vendor_profile/profile');?>" method="post" class="needs-validation reset"  enctype="multipart/form-data">
                 <input type="hidden" name="page" value="<?php echo $this->input->get('page') ; ?>">
@@ -136,10 +158,12 @@ h2.card-title.ven.subcategory {
                     <div class="row bordercfw">
             <div class="col-md-3">
                 <div class="profile-work">&nbsp;&nbsp;&nbsp;&nbsp;<a href="<?php echo base_url('vendor/download_instock_excel/'.$vendor_details['vendor_user_id']); ?>" 
-   class="btn btn-info">
-   Download Excel
-</a></div>
+			   class="btn btn-info">
+			   Download Excel
+			</a></div>
             </div>
+			 <!-- Import Form -->
+			
             <div class="col-md-8">
             <div class="row bordercfw">
 
