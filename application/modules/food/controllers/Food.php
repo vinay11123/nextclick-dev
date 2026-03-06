@@ -2107,6 +2107,752 @@ class Food extends MY_Controller
             $this->_render_page($this->template, $this->data);
         }
     }
+	  public function food_product_bkp_06th_mar_26($rowno = 0, $type = 'r')
+    {
+        if ($type == 'r') {
+            $this->data['title'] = 'food Products list';
+            $this->data['content'] = 'food/food/food_product_details';
+            $this->data['nav_type'] = 'Products';
+            $search_text = "";
+            $noofrows = 10;
+            if ($this->input->server('REQUEST_METHOD') === 'POST') {
+                $search_text = $this->input->post('q');
+                $group = $this->input->post('sub_cat_id');
+                $availability = $this->input->post('statusdata');
+                $menu_id = $this->input->post('menu_id');
+                // $noofrows = $this->input->post('menu_id');
+
+                $noofrows = $this->input->post('noofrows');
+                $this->session->set_userdata(array(
+                    "q" => $search_text,
+                    'noofrows' => $noofrows,
+                    'availability' => $availability,
+                    'menu_id' => $menu_id,
+					'sub_cat_id' => $group
+                ));
+            }  elseif($rowno > 0 &&($this->session->userdata('q') != NULL || $noofrows != NULL)){
+                    $search_text = $this->session->userdata('q');
+                    $noofrows = $this->session->userdata('noofrows');
+                    $availability = $this->session->userdata('availability');
+                    $group = $this->session->userdata('sub_cat_id');
+                    $menu_id = $this->session->userdata('menu_id');
+                }else{
+				$this->session->unset_userdata(['q','noofrows','availability', 'sub_cat_id','menu_id']);	
+					
+				}
+
+            $rowperpage = $noofrows ? $noofrows : 10;
+            if ($rowno != 0) {
+                $rowno = ($rowno - 1) * $rowperpage;
+            }
+
+            // $rowno = ($this->uri->segment(3)) ? ($this->uri->segment(3) - 1) : 0;
+            // if (! $this->ion_auth->in_group(1)) {
+            if ($this->ion_auth->is_admin()) {
+                $admin_ids = $this->get_users_by_group(1);
+                array_push($admin_ids, $this->ion_auth->get_user_id());
+                $deleted_items = $this->db->get_where('deleted_items', [
+                    'vendor_id' => $this->ion_auth->get_user_id()
+                ])
+                    ->result_array();
+                if ($deleted_items) {
+                    $deleted_items = array_column($deleted_items, 'item_id');
+                } else {
+                    $deleted_items = [
+                        0
+                    ];
+                }
+				
+				
+				/* MENU DROPDOWN */
+				if (!empty($group)) {
+					$this->data['menus'] = $this->food_menu_model
+						->where('sub_cat_id',$group)
+						->get_all();
+				} else {
+					$this->data['menus'] = [];
+				}
+
+               if (!empty($search_text)) {
+					$this->db->group_start();
+					$this->db->like('name', $search_text);
+					$this->db->or_like('sounds_like', metaphone($search_text));
+					$this->db->or_where('product_code', $search_text);
+					$this->db->group_end();
+				}
+
+				if (!empty($group)) {
+					$this->db->where('sub_cat_id', $group);
+				}
+
+				if (!empty($menu_id)) {
+					$this->db->where('menu_id', $menu_id);
+				}
+
+                $catalogue_products = $this->food_item_model->with_menu('fields: id, name, vendor_id')
+                    ->with_sub_category('fields: id, name')
+                    ->where('created_user_id', $admin_ids)
+                    ->where('id NOT', $deleted_items)
+                    ->order_by('id', 'DESC')
+                    ->limit($rowperpage, $rowno)
+                    ->get_all();
+                //print_r($this->db->last_query());exit;
+                $allcount = $this->food_item_model->count_rows();
+            } else {
+								/* MENU DROPDOWN */
+				if (!empty($group)) {
+					$this->data['menus'] = $this->food_menu_model
+						->where('sub_cat_id',$group)
+						->get_all();
+				} else {
+					$this->data['menus'] = [];
+				}
+                if (!empty($search_text)) {
+					$this->db->group_start();
+					$this->db->like('name', $search_text);
+					$this->db->or_like('sounds_like', metaphone($search_text));
+					$this->db->or_where('product_code', $search_text);
+					$this->db->group_end();
+				}
+
+				if (!empty($group)) {
+					$this->db->where('sub_cat_id', $group);
+				}else{
+					$this->data['menus'] = [];
+				}
+
+				if (!empty($menu_id)) {
+					$this->db->where('menu_id', $menu_id);
+				}
+
+                $allcount = $this->food_item_model->where('created_user_id', $this->ion_auth->get_user_id())->count_rows();
+                $this->db->like('food_item.sounds_like', metaphone($search_text));
+                
+
+                if ($this->input->post('submit') != NULL) {
+                    $this->db->like('food_item.sub_cat_id', $group);
+                }
+
+                if ($this->input->post('submit') != NULL) {
+                    $this->db->like('food_item.menu_id', $menu_id);
+                }
+
+                $catalogue_products = $this->food_item_model->with_menu('fields: id, name, vendor_id')
+                    ->with_sub_category('fields: id, name')
+                    ->with_brands('fields: id, name')
+                    ->where('created_user_id', $this->ion_auth->get_user_id())
+                    ->where('id NOT', $deleted_items)
+                    ->order_by('id', 'DESC')
+                    ->limit($rowperpage, $rowno)
+                    ->get_all();
+            }
+
+            if ($this->ion_auth->is_admin()) {
+                $cat_data = $this->category_model->fields('id,name,desc')->get_all();
+                $r = array();
+                foreach ($cat_data as $c) {
+                    $c['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                        ->where([
+                            'cat_id' => $c['id'],
+                            'type' => 2,
+                            'created_user_id' => $this->ion_auth->get_user_id()
+                        ])->order_by('name')->get_all();
+                    $r[] = $c;
+                }
+                $this->data['sub_categories'] = $r;
+            } else {
+                $w_r1 = '(created_user_id = ' . $this->ion_auth->get_user_id() . ' OR created_user_id = 1)';
+                $cat_id = $this->vendor_list_model->where('vendor_user_id', $this->ion_auth->get_user_id())
+                    ->get();
+                $this->data['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                    ->where($w_r1)
+                    ->where([
+                        'cat_id' => $cat_id['category_id'],
+                        'type' => 2
+                    ])->order_by('name')
+                    ->get_all();
+            }
+
+            $this->data['food_items'] = $this->food_menu_model->fields('id,name,desc,vendor_id')->get_all();
+            $this->data['brands'] = $this->brand_model->fields('id,name,desc')->get_all();
+
+
+            if (!empty($catalogue_products)) {
+                foreach ($catalogue_products as $key => $val) {
+                    $catalogue_products[$key]['product_image'] = base_url() . 'uploads/food_item_image/food_item_' . $val['id'] . '.jpg';
+                }
+            }
+
+            $config['full_tag_open'] = "<ul class='pagination'>";
+            $config['full_tag_close'] = "</ul>";
+            $config['num_tag_open'] = '<li class="page-item">';
+            $config['num_tag_close'] = '</li>';
+            $config['cur_tag_open'] = "<li class='page-item active'><a href='#'>";
+            $config['cur_tag_close'] = "<span class='sr-only'></span></a></li>";
+            $config['next_tag_open'] = '<li class="page-item">';
+            $config['next_tagl_close'] = "</li>";
+            $config['prev_tag_open'] = '<li class="page-item">';
+            $config['prev_tagl_close'] = "</li>";
+            $config['first_tag_open'] = '<li class="page-item">';
+            $config['first_tagl_close'] = "</li>";
+            $config['last_tag_open'] = '<li class="page-item">';
+            $config['last_tagl_close'] = "</li>";
+            $config['base_url'] = base_url() . 'food/food/food_product';
+            $config['use_page_numbers'] = TRUE;
+            $config['total_rows'] = $allcount;
+            $config['per_page'] = $rowperpage;
+            $this->pagination->initialize($config);
+            $this->data['pagination'] = $this->pagination->create_links();
+            $this->data['products'] = $catalogue_products;
+            $this->data['row'] = $rowno;
+            $this->data['q'] = $search_text;
+			$this->data['menu_id'] = $menu_id;
+			$this->data['sub_cat_id'] = $group;
+            $this->data['noofrows'] = $rowperpage;
+            $this->_render_page($this->template, $this->data);
+        } elseif ($type == 'd') {
+            $this->food_item_image_model->delete([
+                'item_id' => $this->input->post('id')
+            ]);
+            $this->food_sec_item_model->delete([
+                'item_id' => $this->input->post('id')
+            ]);
+            $this->food_section_model->delete([
+                'item_id' => $this->input->post('id')
+            ]);
+            echo $this->food_item_model->delete([
+                'id' => $this->input->post('id')
+            ]);
+            $this->session->set_flashdata('delete_status', 'Product has been deleted successfully');
+            // redirect('food_product/0/r', 'refresh');
+        } else if ($type == 'view') {
+
+            $this->data['title'] = 'Edit Item';
+            $this->data['content'] = 'food/food/view_food_product';
+            $this->data['nav_type'] = 'food_item';
+            $this->data['type'] = 'food_item';
+            $id = base64_decode(base64_decode($this->input->get('id')));
+
+            $this->data['vendourproduct'] = $this->db->query("SELECT fi.id, fi.product_code,fi.name as food_item_name ,fii.id as image_id , u.username as vendor_name,u.unique_id,fi.created_at,fi.updated_at,fi.availability,fi.status,fi.created_user_id,fi.updated_user_id,fm.name as menu_name , sc.name as sub_name FROM food_item as fi
+            join food_section as fs on fs.item_id = fi.id 
+            join food_sec_item as fsi on fsi.item_id = fi.id 
+            join users as u on u.id = fi.created_user_id 
+            join food_menu as fm  on fm.id = fi.menu_id 
+            join sub_categories as sc  on sc.id = fi.sub_cat_id 
+            left join food_item_images as fii  on fii.item_id =  fi.id 
+            where fi.id = '$id'")->result_array();
+
+            $user_id = $this->data['vendourproduct'][0]['created_user_id'];
+            $this->data['userinfo'] = $this->db->query("SELECT * from users where id = '$user_id'")->result_array();
+
+            $this->data['se_food_itm'] = $this->db->query("SELECT fsi.name as variant_name ,fsi.desc ,
+            fsi.price,fsi.weight,fsi .created_at,fsi.updated_at, fs. name as section_name , u.first_name as vendor_name  FROM food_sec_item as fsi
+            join food_section as fs on fs.id = fsi.sec_id 
+            join users as u on u.id = fsi.created_user_id where fsi.item_id = '$id'")->result_array();
+
+            $this->_render_page($this->template, $this->data);
+        } else if ($type == 'changecat') {
+            $id = $this->input->get('id');
+            $is_updated = $this->food_item_model->update([
+                'id' => $id,
+                'status' => 1
+            ], 'id');
+            redirect('food_product/0/r', 'refresh');
+        } else if ($type == 'foodapprovestatus') {
+
+            $id = $this->input->post('item_id');
+            $food_item_data = $this->food_item_model->where('id', $id)->get();
+            $is_updated = $this->food_item_model->update([
+                'id' => $id,
+                'status' => 2
+            ], 'id');
+
+            $this->send_notification($food_item_data['created_user_id'], VENDOR_APP_CODE, $food_item_data['name'] . " product got approved", "Your Product code item " . $food_item_data['product_code'] . " has been approved By NEXCLICK ", ['order_id' => $id, 'notification_type' => $this->notification_type_model->where(['app_details_id' => VENDOR_APP_CODE, 'notification_code' => 'PROD'])->get()]);
+
+            redirect('food_product/0/r', 'refresh');
+        } else if ($type == 'foodpendingstatus') {
+            $id = $this->input->get('id');
+            $is_updated = $this->food_item_model->update([
+                'id' => $id,
+                'status' => 2
+            ], 'id');
+            redirect('food_product/0/r', 'refresh');
+        } else if ($type == 'u') {
+            $this->form_validation->set_rules($this->food_item_model->rules);
+            if ($this->form_validation->run() == FALSE) {
+                echo validation_errors();
+            } else {
+
+                $section_id = $this->input->post('section_id');
+
+                $sounds_like = $this->sounds_like($this->input->post('name'), $this->input->post('shop_by_cat_id'), $this->input->post('menu_id'));
+
+                $sub_cat_id = $this->input->post('sub_cat_id');
+                $menu_id = $this->input->post('menu_id');
+                $item_id = $this->input->post('id');
+                $section_id = $this->input->post('section_id');
+
+                $brand_id = $this->input->post('brand_id');
+
+                $is_updated = $this->food_item_model->update([
+                    'id' => $item_id,
+                    'sub_cat_id' => $sub_cat_id,
+                    'menu_id' => $menu_id,
+                    'brand_id' => $brand_id,
+                    'item_type' => $this->input->post('item_type'),
+                    'name' => $this->input->post('name'),
+                    'desc' => (empty($this->input->post('desc'))) ? NULL : $this->input->post('desc'),
+                    'sounds_like' => $sounds_like,
+                    'availability' => 1,
+                ], 'id');
+
+                if (!empty($this->input->post('proname'))) {
+                    $section_items = [];
+                    $values1 = $this->input->post('proname');
+                    $values2 = $this->input->post('proprice');
+                    $values3 = $this->input->post('proweight');
+                    $values4 = $this->input->post('id1');
+
+                    for ($k = 0; $k < count($this->input->post('proname')); $k++) {
+                        $id1 = $values4[$k];
+                        if ($id1) {
+                            $id1 = $id1;
+                        } else {
+                            $id1 = 0;
+                        }
+                        $this->data['sec_item12'] = $this->food_sec_item_model->where('id', $id1)->get_all();
+                        if (count($this->data['sec_item12'][0]) > 0) {
+                            $is_updated = $this->food_sec_item_model->update([
+                                'id' => $this->data['sec_item12'][0]['id'],
+                                'menu_id' => $menu_id,
+                                'item_id' => $item_id,
+                                'sec_id' => $section_id,
+                                'section_item_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                                'name' => $values1[$k],
+                                'price' => $values2[$k],
+                                'weight' => $values3[$k],
+                                'status' => 1
+                            ], 'id');
+                        } else {
+                            $data1 = array(
+                                'menu_id' => $menu_id,
+                                'item_id' => $item_id,
+                                'sec_id' => $section_id,
+                                'section_item_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                                'name' => $values1[$k],
+                                'price' => $values2[$k],
+                                'weight' => $values3[$k],
+                                'status' => 1
+                            );
+                            $this->food_sec_item_model->insert($data1);
+                        }
+                    }
+                }
+
+                if ($_FILES["item_images"]["name"][0] != "") {
+                    $dt = $this->food_item_image_model->where('item_id', $this->input->post('id'))
+                        ->get_all();
+                    foreach ($dt as $d) {
+                        unlink('./uploads/' . 'food_item' . '_image/' . 'food_item' . '_' . $d['id'] . '.jpg');
+                    }
+
+                    $is_deleted = $this->food_item_image_model->delete([
+                        'item_id' => $this->input->post('id')
+                    ]);
+                    if ($is_deleted) {
+                        foreach ($_FILES['item_images']['name'] as $key => $name) {
+                            $product_image_id = $this->food_item_image_model->insert([
+                                'item_id' => $item_id,
+                                'serial_number' => ++$i,
+                                'ext' => 'jpg'
+                            ]);
+                            $uploadFileDir = './uploads/food_item_image/';
+                            $dest_path = $uploadFileDir;
+                            $dest_path = $uploadFileDir . "food_item_" . $product_image_id . ".jpg";
+                            move_uploaded_file($_FILES['item_images']['tmp_name'][$key], $dest_path);
+                        }
+                    }
+                }
+                $this->session->set_flashdata('upload_status', 'Product has been updated successfully');
+                //redirect('food_product/0/r', 'refresh');
+                $page = $this->input->post('page') ?? 1;
+
+				redirect('food/food/food_product/' . $page, 'refresh');
+            }
+        } else if ($type == 'e') {
+
+            $this->form_validation->set_rules($this->food_item_model->rules);
+
+            if ($this->form_validation->run() == FALSE) {
+                echo validation_errors();
+            } elseif (empty($this->input->post('proname'))) {
+                echo "Please add variants.";
+                die();
+            } else {
+                $sounds_like = $this->sounds_like($this->input->post('name'), $this->input->post('shop_by_cat_id'), $this->input->post('menu_id'));
+
+                $sub_cat_id = $this->input->post('sub_cat_id');
+                $menu_id = $this->input->post('menu_id');
+                $proname = $this->input->post('proname');
+                $brand_id = $this->input->post('brand_id');
+                $this->db->trans_begin();
+                if ($this->ion_auth->is_admin()) {
+                    $item_id = $this->food_item_model->insert([
+                        'sub_cat_id' => $sub_cat_id,
+                        'menu_id' => $menu_id,
+                        'brand_id' => $brand_id,
+                        'item_type' => $this->input->post('item_type'),
+                        'product_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                        'name' => $this->input->post('name'),
+                        'desc' => (empty($this->input->post('desc'))) ? NULL : $this->input->post('desc'),
+                        'sounds_like' => $sounds_like,
+                        'availability' => 1,
+                        'status' => 1
+                    ]);
+                } else {
+                    $item_id = $this->food_item_model->insert([
+                        'sub_cat_id' => $sub_cat_id,
+                        'menu_id' => $menu_id,
+                        'brand_id' => $brand_id,
+                        'item_type' => $this->input->post('item_type'),
+                        'product_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                        'name' => $this->input->post('name'),
+                        'desc' => (empty($this->input->post('desc'))) ? NULL : $this->input->post('desc'),
+                        'sounds_like' => $sounds_like,
+                        'availability' => 1,
+                        'status' => 3
+                    ]);
+                }
+
+                if ($item_id) {
+                    $section_id = $this->food_section_model->insert([
+                        'menu_id' => $menu_id,
+                        'item_id' => $item_id,
+                        'name' => $this->input->post('name')
+                    ]);
+
+                    if ($section_id && !empty($this->input->post('proname'))) {
+                        $section_items = [];
+                        $values1 = $this->input->post('proname');
+                        $values2 = $this->input->post('proprice');
+                        $values3 = $this->input->post('proweight');
+                        for ($k = 0; $k < count($this->input->post('proname')); $k++) {
+                            array_push($section_items, [
+                                'menu_id' => $menu_id,
+                                'item_id' => $item_id,
+                                'sec_id' => $section_id,
+                                'section_item_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                                'name' => $values1[$k],
+                                'price' => $values2[$k],
+                                'weight' => $values3[$k],
+                                'status' => 1
+                            ]);
+                        }
+                        $is__section_items_inserted = $this->food_sec_item_model->insert($section_items);
+                        if ($this->db->trans_status() === FALSE && empty($is__section_items_inserted)) {
+                            $this->session->set_flashdata('upload_status', 'variants data is missed, please create the product again.');
+                            $this->db->trans_rollback();
+                        } else {
+                            $this->session->set_flashdata('upload_status', 'Product has been added successfully');
+                            $this->db->trans_commit();
+                        }
+                    }
+                    $i = 0;
+                    foreach ($_FILES['item_images']['name'] as $key => $name) {
+                        $product_image_id = $this->food_item_image_model->insert([
+                            'item_id' => $item_id,
+                            'serial_number' => ++$i,
+                            'ext' => 'jpg'
+                        ]);
+                        if (!file_exists('uploads/' . 'food_item_image/')) {
+                            mkdir('uploads/' . 'food_item_image/', 0777, true);
+                        }
+
+                        $uploadFileDir = './uploads/food_item_image/';
+                        $dest_path = $uploadFileDir;
+                        $dest_path = $uploadFileDir . "food_item_" . $product_image_id . ".jpg";
+                        move_uploaded_file($_FILES['item_images']['tmp_name'][$key], $dest_path);
+                    }
+                }
+            }
+            redirect('food_product/0/r', 'refresh');
+        } elseif ($type == 'l') {
+            $this->data['title'] = 'Edit Item';
+            $this->data['content'] = 'food/food/excel_product';
+            $this->data['nav_type'] = 'food_item';
+            $this->data['type'] = 'food_item';
+            $this->_render_page($this->template, $this->data);
+        } elseif ($type == 'k') {
+            if (!$this->input->post('submit')) {
+                $path = 'uploads/';
+                require_once APPPATH . "/third_party/PHPExcel.php";
+                $config['upload_path'] = $path;
+                $config['allowed_types'] = 'xlsx|xls';
+                $config['remove_spaces'] = TRUE;
+                $this->load->library('upload', $config);
+                $this->upload->initialize($config);
+
+                if (!$this->upload->do_upload('uploadFile')) {
+                    $error = array(
+                        'error' => $this->upload->display_errors()
+                    );
+                } else {
+                    $data = array(
+                        'upload_data' => $this->upload->data()
+                    );
+                }
+
+                if (!empty($data['upload_data']['file_name'])) {
+                    $import_xls_file = $data['upload_data']['file_name'];
+                } else {
+                    $import_xls_file = 0;
+                }
+                $inputFileName = $path . $import_xls_file;
+
+                try {
+
+                    $inputFileType = PHPExcel_IOFactory::identify($inputFileName);
+                    $objReader = PHPExcel_IOFactory::createReader($inputFileType);
+                    $objPHPExcel = $objReader->load($inputFileName);
+                    $allDataInSheet = $objPHPExcel->getActiveSheet()->toArray(null, true, true, true);
+                    $flag = true;
+                    $i = 0;
+
+                    $sounds_like = $this->sounds_like($this->input->post('name'), $this->input->post('shop_by_cat_id'), $this->input->post('menu_id'));
+
+                    foreach ($allDataInSheet as $value) {
+                        if ($flag) {
+                            $flag = false;
+                            continue;
+                        }
+                        $sounds_like = $this->sounds_like($value['D'], $value['A'], $value['B']);
+                        $sub_cat_id = $value['A'];
+                        $menu_id = $value['B'];
+                        $brand_id = $value['C'];
+                        $name = $value['D'];
+                        $desc = $value['E'];
+                        $availability = $value['F'];
+                        $status = $value['G'];
+
+                        $item_id = $this->food_item_model->insert([
+                            'sub_cat_id' => $sub_cat_id,
+                            'menu_id' => $menu_id,
+                            'brand_id' => $brand_id,
+                            'product_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                            'name' => $name,
+                            'desc' => (empty($this->input->post('desc'))) ? NULL : $this->input->post('desc'),
+                            'sounds_like' => $sounds_like,
+                            'availability' => 1,
+                            'status' => 1
+                        ]);
+
+                        if ($item_id) {
+                            $section_id = $this->food_section_model->insert([
+                                'menu_id' => $menu_id,
+                                'item_id' => $item_id,
+                                'name' => $name
+                            ]);
+
+                            $values1 = $value['H'];
+                            $arrname = explode(',', $values1);
+
+                            if ($section_id && !empty($arrname)) {
+
+                                $section_items = [];
+
+                                $values1 = $value['H'];
+                                $values2 = $value['I'];
+                                $values3 = $value['J'];
+                                $arrname = explode(',', $values1);
+                                $arrprice = explode(',', $values2);
+                                $arrweight = explode(',', $values3);
+
+                                for ($k = 0; $k < count($arrname); $k++) {
+                                    array_push($section_items, [
+                                        'menu_id' => $menu_id,
+                                        'item_id' => $item_id,
+                                        'sec_id' => $section_id,
+                                        'section_item_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000, 9999))), 0, 20), 4)),
+                                        'name' => $arrname[$k],
+                                        'price' => $arrprice[$k],
+                                        'weight' => $arrweight[$k],
+                                        'status' => 1
+                                    ]);
+                                }
+
+                                $result = $this->food_sec_item_model->insert($section_items);
+
+                                $product_image_id = $this->food_item_image_model->insert([
+                                    'item_id' => $item_id,
+                                    'serial_number' => ++$i,
+                                    'ext' => 'jpg'
+                                ]);
+
+                                // $url=$d[1];
+
+                                $url = $value['K'];
+
+                                $name_temp = basename($url);
+
+                                // $wotname = basename($name_temp,".php");
+                                $name_temp1 = "food_item_" . $product_image_id . ".jpg";
+
+                                if (!file_exists('uploads/' . 'food_item_image/')) {
+                                    mkdir('uploads/' . 'food_item_image/', 0777, true);
+                                }
+
+                                $my_location = './uploads/food_item_image/';
+
+                                if (file_exists($my_location . '' . $name_temp1)) {
+                                    $fileinfo = pathinfo($url);
+                                    $name = $fileinfo['filename'] . '_' . rand(1, 10000) . '.' . $fileinfo['extension'];
+                                } else {
+                                    $name = $name_temp1;
+                                }
+
+                                if (!defined('IMAGE_DIR'))
+                                    define('IMAGE_DIR', $my_location);
+
+                                $img = file_get_contents($url);
+                                if (!$img) {
+                                    die('Getting that file failed');
+                                }
+
+                                /* if (! $f = fopen(IMAGE_DIR . '/' . $name, 'w')) {
+                                    die('Opening file for writing failed');
+                                } */
+
+                                $is_updated = file_put_contents(IMAGE_DIR . '/' . $name, $img);
+
+                                if ($is_updated === FALSE) {
+                                    die('Could not write to the file');
+                                }
+                                fclose($f);
+                            }
+                        }
+                    }
+
+                    if ($result) {
+
+                        $this->session->set_flashdata('upload_status', [
+                            "success" => "Imported successfully imported..!"
+                        ]);
+
+                        // echo "Imported successfully";
+                        redirect('food_product/0/r', 'refresh');
+                    } else {
+                        echo "ERROR !";
+                    }
+                } catch (Exception $e) {
+
+                    die('Error loading file "' . pathinfo($inputFileName, PATHINFO_BASENAME) . '": ' . $e->getMessage());
+                }
+            }
+        } elseif ($type == 'sec_item') {
+            $this->food_sec_item_model->delete([
+                'id' => base64_decode(base64_decode($this->input->get('id')))
+            ]);
+            redirect($_SERVER['HTTP_REFERER']);
+        } elseif ($type == 'edit') {
+            $this->data['title'] = 'Edit Item';
+            $this->data['content'] = 'food/food/edit_food_product';
+            $this->data['nav_type'] = 'food_item';
+            $this->data['type'] = 'food_item';
+            $this->data['sub_items'] = $this->food_item_model->order_by('id', 'DESC')
+                ->where('id', base64_decode(base64_decode($this->input->get('id'))))
+                ->get();
+            $subcat_id = $this->data['sub_items']['sub_cat_id'];
+
+            if ($this->ion_auth->is_admin()) {
+                $w_r = '(vendor_id = ' . $this->ion_auth->get_user_id() . ')';
+            } else {
+                $w_r = '(vendor_id = ' . $this->ion_auth->get_user_id() . ' OR vendor_id = 1)';
+            }
+            if ($this->ion_auth->is_admin()) {
+                $cat_data = $this->category_model->fields('id,name,desc')->get_all();
+                $r = array();
+                foreach ($cat_data as $c) {
+                    $c['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                        ->where([
+                            'cat_id' => $c['id'],
+                            'type' => 2,
+                            'created_user_id' => $this->ion_auth->get_user_id()
+                        ])
+                        ->get_all();
+                    $r[] = $c;
+                }
+                $this->data['sub_categories'] = $r;
+            } else {
+                $w_r1 = '(created_user_id = ' . $this->ion_auth->get_user_id() . ' OR created_user_id = 1)';
+                $cat_id = $this->vendor_list_model->where('vendor_user_id', $this->ion_auth->get_user_id())
+                    ->get();
+                $this->data['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                    ->where($w_r1)
+                    ->where([
+                        'cat_id' => $cat_id['category_id'],
+                        'type' => 2
+                    ])
+                    ->get_all();
+            }
+
+            $tempid = $this->data['sub_items']['id'];
+            //echo $tempid; exit;
+            $this->data['sec_item1'] = $this->food_sec_item_model->where('item_id', $tempid)->get_all();
+            $this->data['food_sec'] = $this->food_section_model->where('item_id', $tempid)->get_all();
+            //$this->db->where($w_r);
+            $this->data['items'] = $this->food_menu_model->where('sub_cat_id', $subcat_id)->fields('id,name,desc,vendor_id')->order_by('id', 'DESC')->get_all();
+            //$this->data['items'] = $this->food_menu_model->fields('id,name,desc,vendor_id')->order_by('id', 'DESC')->get_all();
+            $this->data['food_sub_items'] = $this->food_item_model->where('id', base64_decode(base64_decode($this->input->get('id'))))
+                ->get();
+
+            $this->data['food_sub_items'] = $this->food_item_model->where('id', base64_decode(base64_decode($this->input->get('id'))))
+                ->get();
+
+            $this->data['food_sec'] = $this->food_section_model->where('item_id', $tempid)->get_all();
+
+            $this->data['img'] = $this->food_item_image_model->where('item_id', $tempid)->get_all();
+
+            $this->data['brands'] = $this->brand_model->fields('id,name,desc')->get_all();
+
+            $this->_render_page($this->template, $this->data);
+        } else if ($type = 'c') {
+            $this->data['title'] = 'Product';
+            $this->data['content'] = 'food/food/food_product';
+            $this->data['nav_type'] = 'food_product';
+
+            if ($this->ion_auth->is_admin()) {
+                $cat_data = $this->category_model->fields('id,name,desc')->get_all();
+                $r = array();
+                foreach ($cat_data as $c) {
+                    $c['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                        ->where([
+                            'cat_id' => $c['id'],
+                            'type' => 2,
+                            'created_user_id' => $this->ion_auth->get_user_id()
+                        ])
+                        ->get_all();
+
+                    $r[] = $c;
+                }
+                $this->data['sub_categories'] = $r;
+            } else {
+                $w_r1 = '(created_user_id = ' . $this->ion_auth->get_user_id() . ' OR created_user_id = 1)';
+                $cat_id = $this->vendor_list_model->where('vendor_user_id', $this->ion_auth->get_user_id())
+                    ->get();
+                $this->data['sub_categories'] = $this->sub_category_model->fields('id,name,desc,cat_id')
+                    ->where($w_r1)
+                    ->where([
+                        'cat_id' => $cat_id['category_id'],
+                        'type' => 2
+                    ])
+                    ->get_all();
+            }
+
+            $this->data['food_items'] = $this->food_menu_model->fields('id,name,desc,vendor_id')->get_all();
+            $this->data['brands'] = $this->brand_model->fields('id,name,desc')->get_all();
+            $this->_render_page($this->template, $this->data);
+        }
+    }
 	
     public function food_product_bkp($rowno = 0, $type = 'r')
     {

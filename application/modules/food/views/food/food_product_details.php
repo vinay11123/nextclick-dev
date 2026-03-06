@@ -127,9 +127,8 @@ td:nth-child(8){
 
 								</select>
 						</div>
-                    
- 
-					</div>
+                                 
+ 					</div>
 					<button type="submit" name="submit" id="upload" value="Apply" class="btn btn-primary mt-27 "><i class="fa fa-search newserch" aria-hidden="true"></i>&nbsp;Search</button>
         		</form>
         		<form class="needs-validation h-100 justify-content-center align-items-center ptar" novalidate="" action="<?php echo base_url('food_product/0/r');?>" method="post" enctype="multipart/form-data">
