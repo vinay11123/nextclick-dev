@@ -1481,7 +1481,7 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
     }
 
 	
-	public function import_vendor_products($file, $vendor_id)
+public function import_vendor_products($file, $vendor_id)
 {
     ini_set('memory_limit', '-1');
     ini_set('max_execution_time', '0');
@@ -1675,6 +1675,10 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
             $variation_id = $this->db->insert_id();
 
         } else {
+			$this->db->update("food_sec_item", [
+				'weight' => $weight,
+				'updated_at' => date('Y-m-d H:i:s')
+			]);
 
             $variation_id = $product_variation['id'];
         }
@@ -1715,25 +1719,35 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
         ])->row_array();
 
         if ($exists) {
-            continue;
-        }
 
-        /* INSERT VENDOR PRODUCT */
+			/* UPDATE PRODUCT */
+			$this->db->where('id', $exists['id']);
+			$this->db->update("vendor_product_variants", [
+				'price'    => $price,
+				'stock'    => $stock,
+				'discount' => $discount,
+				'tax_id'   => $tax_id,
+				'updated_at' => date('Y-m-d H:i:s')
+			]);
 
-        $insert = [
-            'item_id'         => $product_id,
-            'section_id'      => 0,
-            'section_item_id' => $variation_id,
-            'price'           => $price,
-            'stock'           => $stock,
-            'discount'        => $discount,
-            'tax_id'          => $tax_id,
-            'vendor_user_id'  => $vendor_id,
-            'created_at'      => date('Y-m-d H:i:s'),
-            'created_user_id' => $this->ion_auth->get_user_id()
-        ];
+		} else {
 
-        $this->db->insert("vendor_product_variants", $insert);
+			/* INSERT NEW PRODUCT */
+			$insert = [
+				'item_id'         => $product_id,
+				'section_id'      => 0,
+				'section_item_id' => $variation_id,
+				'price'           => $price,
+				'stock'           => $stock,
+				'discount'        => $discount,
+				'tax_id'          => $tax_id,
+				'vendor_user_id'  => $vendor_id,
+				'created_at'      => date('Y-m-d H:i:s'),
+				'created_user_id' => $this->ion_auth->get_user_id()
+			];
+
+			$this->db->insert("vendor_product_variants", $insert);
+		}
     }
 
     $this->session->set_userdata('upload_bulk_status', [
@@ -1741,7 +1755,6 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
     ]);
 	redirect($_SERVER['HTTP_REFERER']);
 }
-	
 
 	        
 }
