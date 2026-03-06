@@ -88,7 +88,7 @@ foreach ($executives as $executive):
 //if(isset($executive['app_status']) && $executive['app_status'] == 1):
 ?>
 <tr>
-    <td><input type="checkbox" class="rowCheckbox installedCheckbox " value="<?php echo $executive['id']; ?>"></td>
+    <td><input type="checkbox" class="rowCheckbox installedCheckbox " value="<?php echo $executive['id']; ?>"  data-intent="<?php echo $executive['primary_intent']; ?>"></td>
     <td><?php echo $sno++;?></td>
     <td><?php echo $executive['id'];?></td>
     <td><?php echo $executive['primary_intent'];?></td>
@@ -267,9 +267,12 @@ $('#sendNotification').on('click', function (e) {
     e.preventDefault();
 
     var selectedIds = [];
+    var selectedIntent = [];
+
 
     $('.rowCheckbox:checked').each(function () {
         selectedIds.push($(this).val());
+        selectedIntent.push($(this).data('intent'));
     });
 
     if (selectedIds.length === 0) {
@@ -277,13 +280,35 @@ $('#sendNotification').on('click', function (e) {
         return false;
     }
     
+     // Get unique intent (assuming single type selection)
+    var uniqueIntent = [...new Set(selectedIntent)];
+
+    if(uniqueIntent.length > 1){
+        alert("Please select users of same App Type only");
+        return false;
+    }
+
+    var serverKey = "";
+
+    if(uniqueIntent[0] === "user"){
+        serverKey = "User Application";
+		app_id   = "1";
+    } else if(uniqueIntent[0] === "vendor"){
+        serverKey = "Vendor Application";
+		app_id   = "2";
+    } else if(uniqueIntent[0] === "delivery_partner"){
+        serverKey = "Devlivery Partner";
+		app_id   = "4";
+    }
+
+    
         // Get title value
     var title = $('#title').val();
 
     // Get CKEditor message value
-    var message = CKEDITOR.instances.message.getData();
+    var msg = CKEDITOR.instances.message.getData();
 
-    if (title.trim() === '' || message.trim() === '') {
+    if (title.trim() === '' || msg.trim() === '') {
         alert("Title and Message are required");
         return false;
     }
@@ -294,18 +319,21 @@ $('#sendNotification').on('click', function (e) {
         dataType: "json",
         data: {
             user_ids: JSON.stringify(selectedIds),
-            title: "New Offer 🔥",
-            message: "You have received a new offer go through the nextclcik app",
-            server_key: "App Users"
+            title: title,
+            message: msg,
+            server_key: serverKey,
+			app_id : app_id
         },
         beforeSend: function () {
             $('#sendNotification').prop('disabled', true).text('Sending...');
         },
         success: function (response) {
             alert(response.message);
+			location.reload(); 
         },
         error: function () {
             alert("Something went wrong!");
+			location.reload(); 
         },
         complete: function () {
             $('#sendNotification').prop('disabled', false).text('Send Notification');

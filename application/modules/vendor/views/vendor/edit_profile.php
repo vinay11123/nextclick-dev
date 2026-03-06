@@ -1,4 +1,8 @@
 <style>
+.form-label{
+    margin-bottom:6px;
+    font-weight:500;
+}
     .space {
     position: relative;
     left: 78px;
@@ -114,11 +118,42 @@ h2.card-title.ven.subcategory {
        <a style="border: 1px solid #373435;border-radius: 3px;padding: 4px;background-color: #373435;color: white;" href="<?php echo base_url('vendors_filter/0');?>">User <i class="fa fa-angle-double-left"></i> Profile</a> 
    
     </div>
-    </div>   
+    </div> 
+<div class="col-md-12" style="">	
+<form action="<?php echo base_url('vendor/vendor_products_bulk_upload'); ?>" 
+      method="post" 
+      enctype="multipart/form-data">
+
+<input type="hidden" name="vendor_user_id" 
+    value="<?php echo $vendor_details['vendor_user_id']; ?>">
+
+<div class="row">
+
+<div class="col-md-5">
+    <label>Upload Excel</label>
+    <input type="file" name="excel_file" class="form-control" required>
+</div>
+
+<div class="col-md-5">
+    <label>Upload Images ZIP</label>
+    <input type="file" name="images_zip" class="form-control">
+    <small style="color:red;">For uploading new products please upload images zip</small>
+</div>
+
+<div class="col-md-2  align-items-end">
+    <button type="submit" name="import" class="btn btn-primary w-100" style="margin-top:43px !important;">
+        Import
+    </button>
+</div>
+
+</div>
+
+</form>
+</div>
 
 <div class="container">
     <div class="row">
-	
+
         <div class="col-md-12" style="">
             <form id="form_site_settings" action="<?php echo base_url('vendor_profile/profile');?>" method="post" class="needs-validation reset"  enctype="multipart/form-data">
                 <input type="hidden" name="page" value="<?php echo $this->input->get('page') ; ?>">
@@ -136,10 +171,12 @@ h2.card-title.ven.subcategory {
                     <div class="row bordercfw">
             <div class="col-md-3">
                 <div class="profile-work">&nbsp;&nbsp;&nbsp;&nbsp;<a href="<?php echo base_url('vendor/download_instock_excel/'.$vendor_details['vendor_user_id']); ?>" 
-   class="btn btn-info">
-   Download Excel
-</a></div>
+			   class="btn btn-info">
+			   Download Excel
+			</a></div>
             </div>
+			 <!-- Import Form -->
+			
             <div class="col-md-8">
             <div class="row bordercfw">
 

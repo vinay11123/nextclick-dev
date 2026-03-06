@@ -62,6 +62,7 @@ class App extends MY_Controller
         $this->load->model('delivery_partner_location_tracking_model');
         $this->load->model('cupons_model');
         $this->load->model('app_model');
+		$this->load->model('notifications_model');
     }
 
     public function index()
@@ -244,6 +245,7 @@ class App extends MY_Controller
     $title     = $this->input->post('title');
     $message   = $this->input->post('message');
     $serverKey = $this->input->post('server_key');
+	$appId = $this->input->post('app_id');
     
  // Debug (remove after testing)
    // print_r($this->input->post()); exit;
@@ -260,7 +262,16 @@ class App extends MY_Controller
         $this->db->where('user_id', $user_id);
         $this->db->order_by('id', 'DESC');   // 🔥 important
         $user = $this->db->get('fcm')->row();
-
+		//notification messages stored//
+		 $this->db->insert("notifications", [
+                'notification_type_id' => 29,
+                'app_details_id' => $appId,
+                'title'  => $title,
+                'message'    => $message,
+                'notified_user_id '  => $user_id,
+				'created_at' => date('Y-m-d'),
+				'status'  => 1   
+            ]);
         if (!empty($user->token)) {
 
             $fields = [
@@ -286,15 +297,19 @@ class App extends MY_Controller
     private function sendPushNotification($fields, $server_key)
     {
 
-echo '<pre>';
-var_dump($fields);
-var_dump($server_key);
-exit;
     // Define valid server keys and corresponding service account JSON paths and URLs
     $validKeys = [
-        'App Users' => [
+        'User Application' => [
             'serviceAccountJson' => APPPATH . 'config/service_accounts/nextclickuser.json',
-            'url' => 'https://fcm.googleapis.com/v1/projects/nextclickuser-df6c4/messages:send' // Replace with the actual project ID for Vendor Application
+            'url' => 'https://fcm.googleapis.com/v1/projects/nextclickuser-df6c4/messages:send'
+        ],
+        'Vendor Application' => [
+            'serviceAccountJson' => APPPATH . 'config/service_accounts/nextclick-crm.json',
+            'url' => 'https://fcm.googleapis.com/v1/projects/nextclick-crm-e00a6/messages:send' // Replace with the actual project ID for Vendor Application
+        ],
+        'Devlivery Partner' => [
+            'serviceAccountJson' => APPPATH . 'config/service_accounts/nextclickdelivery.json',
+            'url' => 'https://fcm.googleapis.com/v1/projects/nextclickdelivery-88b76/messages:send' // Replace with the actual project ID for Vendor Application
         ]
     ];
     if (array_key_exists($server_key, $validKeys)) {

@@ -1,6 +1,7 @@
     <?php
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 class Vendor extends MY_Controller
 {
 
@@ -1339,7 +1340,11 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
         $items = $query->result_array();
         $item_ids = $items[0]['item_ids'];
 //echo $vendor_user_id; exit;
-    $sql = "
+   
+	if (empty($item_ids)) {
+		$records = [];
+	} else {
+	    $sql = "
         SELECT 
             c.name AS category_name,
             sc.name AS sub_category_name,
@@ -1365,11 +1370,10 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
          vpvv.vendor_user_id = ?
         
     ";
-
-   
-    $query = $this->db->query($sql, array($vendor_user_id));
+	$query = $this->db->query($sql, array($vendor_user_id));
     $records = $query->result_array();
-
+	}
+	
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
 
@@ -1395,9 +1399,10 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
 
     $row = 2;
     foreach ($records as $data) {
-		if($data['product_name'] == "1"){
+		
+		if($data['product_type'] == "1"){
 			$type = "Veg";
-		}elseif($data['product_name'] == "2"){
+		}elseif($data['product_type'] == "2"){
 			$type = "NonVeg";
 		}else{
 			$type = "Other";
@@ -1419,7 +1424,9 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
     $filename = 'Products_list_'.time().'.xlsx';
 
     // 🔥 VERY IMPORTANT FIX
-    ob_end_clean(); // clear output buffer
+   if (ob_get_length()) {
+		ob_end_clean();
+	}// clear output buffer
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="'.$filename.'"');
     header('Cache-Control: max-age=0');
@@ -1429,6 +1436,312 @@ $sql_items = "SELECT GROUP_CONCAT(item_id) item_ids FROM `vendor_product_variant
     $writer->save('php://output');
     exit;
 }
+
+
+	public function vendor_products_bulk_upload()
+    {
+        if (isset($_POST['import'])) {
+
+            $excel_file = $_FILES['excel_file'];
+            $zip_file   = $_FILES['images_zip'];
+            $vendor_id  = $_POST['vendor_user_id'];
+
+            $extract_path = FCPATH . 'uploads/import_products/';
+
+            /* CREATE FOLDER */
+
+            if (!is_dir($extract_path)) {
+                mkdir($extract_path, 0777, true);
+            }
+
+            /* EXTRACT ZIP IMAGES */
+
+            if (!empty($zip_file['name'])) {
+
+                $zip = new ZipArchive;
+
+                if ($zip->open($zip_file['tmp_name']) === TRUE) {
+
+                    $zip->extractTo($extract_path);
+                    $zip->close();
+
+                } else {
+
+                    $this->session->set_flashdata('upload_bulk_status',[
+                        "error"=>"ZIP extraction failed"
+                    ]);
+                    redirect($_SERVER['HTTP_REFERER']);
+                }
+            }
+
+            /* IMPORT EXCEL */
+
+            $this->import_vendor_products($excel_file,$vendor_id);
+        }
+    }
+
+	
+	public function import_vendor_products($file, $vendor_id)
+{
+    ini_set('memory_limit', '-1');
+    ini_set('max_execution_time', '0');
+
+    if (empty($file['name'])) {
+        return;
+    }
+
+    /* IMAGE FOLDERS */
+
+    $import_image_path = FCPATH . 'uploads/import_products/';
+    $upload_image_path = FCPATH . 'uploads/food_item_image/';
+
+    if (!is_dir($upload_image_path)) {
+        mkdir($upload_image_path, 0777, true);
+    }
+
+    try {
+
+        $reader = IOFactory::createReaderForFile($file['tmp_name']);
+        $spreadsheet = $reader->load($file['tmp_name']);
+        $allDataInSheet = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
+        $arrayCount = count($allDataInSheet);
+
+    } catch (\Exception $e) {
+
+        $this->session->set_userdata('upload_status', [
+            "error" => "File read error: " . $e->getMessage()
+        ]);
+        return;
+    }
+
+    if ($arrayCount <= 1) {
+
+        $this->session->set_userdata('upload_status', [
+            "error" => "Excel file is empty"
+        ]);
+        return;
+    }
+
+    for ($i = 2; $i <= $arrayCount; $i++) {
+
+        $category_name      = trim($allDataInSheet[$i]['A'] ?? '');
+        $sub_category_name  = trim($allDataInSheet[$i]['B'] ?? '');
+        $menu_name          = trim($allDataInSheet[$i]['C'] ?? '');
+        $brand_name         = trim($allDataInSheet[$i]['D'] ?? '');
+        $product_type       = trim($allDataInSheet[$i]['E'] ?? '');
+        $product_name       = trim($allDataInSheet[$i]['F'] ?? '');
+        $variant_name       = trim($allDataInSheet[$i]['G'] ?? '');
+        $price              = trim($allDataInSheet[$i]['H'] ?? '');
+        $discount           = trim($allDataInSheet[$i]['I'] ?? '');
+        $stock              = trim($allDataInSheet[$i]['J'] ?? '');
+        $tax                = trim($allDataInSheet[$i]['K'] ?? '');
+        $image_name         = trim($allDataInSheet[$i]['L'] ?? '');
+		$weight         = trim($allDataInSheet[$i]['M'] ?? '');
+
+        if ($price == '' || $stock == '') {
+            continue;
+        }
+
+        /* CATEGORY */
+
+        $category = $this->db->get_where("categories", [
+            'name' => $category_name
+        ])->row_array();
+
+        if (!$category) continue;
+
+        /* SUB CATEGORY */
+
+        $sub_category = $this->db->get_where("sub_categories", [
+            'cat_id' => $category['id'],
+            'name'   => $sub_category_name,
+            'type'   => 2
+        ])->row_array();
+
+        if (!$sub_category) continue;
+
+        /* MENU */
+
+        $menu = $this->db->get_where("food_menu", [
+            'sub_cat_id' => $sub_category['id'],
+            'name'       => $menu_name
+        ])->row_array();
+
+        if (!$menu) continue;
+
+        /* BRAND */
+
+        $brand = $this->db->get_where("brands", [
+            'name' => $brand_name
+        ])->row_array();
+
+        if (!$brand) continue;
+
+        /* PRODUCT TYPE */
+
+        $p_type = 3;
+
+        if (strtolower($product_type) == 'veg') {
+            $p_type = 1;
+        } elseif (strtolower($product_type) == 'non veg') {
+            $p_type = 2;
+        }
+
+        /* PRODUCT CHECK */
+
+        $product = $this->db->get_where("food_item", [
+            'sub_cat_id' => $sub_category['id'],
+            'menu_id'    => $menu['id'],
+            'brand_id'   => $brand['id'],
+            'item_type'  => $p_type,
+            'name'       => $product_name
+        ])->row_array();
+
+        if (!$product) {
+
+            $this->db->insert("food_item", [
+                'sub_cat_id' => $sub_category['id'],
+                'menu_id'    => $menu['id'],
+                'brand_id'   => $brand['id'],
+                'item_type'  => $p_type,
+                'name'       => $product_name,
+                'product_code' => implode('-', str_split(substr(strtoupper(md5(time() . rand(1000,9999))),0,20),4)),
+                'created_user_id' => $vendor_id,
+                'status'     => 1,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+
+            $product_id = $this->db->insert_id();
+
+        } else {
+
+            $product_id = $product['id'];
+        }
+
+        /* PRODUCT IMAGE IMPORT */
+
+        if (!empty($image_name)) {
+
+            $image_path = $import_image_path . $image_name;
+
+            if (file_exists($image_path)) {
+
+                $image_exists = $this->db->get_where("food_item_images",[
+                    'item_id'=>$product_id
+                ])->row_array();
+
+                if (!$image_exists) {
+
+                    $this->db->insert("food_item_images", [
+                        'item_id' => $product_id,
+                        'serial_number' => 1,
+                        'ext' => 'jpg'
+                    ]);
+
+                    $image_id = $this->db->insert_id();
+
+                    $source_image = file_get_contents($image_path);
+
+                    file_put_contents(
+                        $upload_image_path . "food_item_" . $image_id . ".jpg",
+                        $source_image
+                    );
+                }
+            }
+        }
+
+        /* VARIANT CHECK */
+
+        $product_variation = $this->db
+            ->where([
+                'item_id' => $product_id,
+                'name'    => $variant_name
+            ])
+            ->get("food_sec_item")
+            ->row_array();
+
+        if (!$product_variation) {
+
+            $this->db->insert("food_sec_item", [
+                'menu_id' => $menu['id'],
+                'item_id' => $product_id,
+                'sec_id'  => $product_id,
+                'name'    => $variant_name,
+                'status'  => 1,
+				'created_user_id' => $vendor_id,
+				'weight'  => $weight   
+            ]);
+
+            $variation_id = $this->db->insert_id();
+
+        } else {
+
+            $variation_id = $product_variation['id'];
+        }
+
+        /* TAX */
+
+        if ($tax == '') {
+            $tax = 'Nill';
+        }
+
+        $tax_row = $this->db->get_where("taxes", [
+            'tax' => $tax
+        ])->row_array();
+
+        if (!$tax_row) {
+
+            $this->db->insert("taxes", [
+                'tax' => $tax,
+                'rate' => $tax,
+                'type_id' => 20,
+                'created_user_id' => 1,
+                'status' => 0
+            ]);
+
+            $tax_id = $this->db->insert_id();
+
+        } else {
+
+            $tax_id = $tax_row['id'];
+        }
+
+        /* CHECK VENDOR PRODUCT */
+
+        $exists = $this->db->get_where("vendor_product_variants", [
+            'item_id'         => $product_id,
+            'section_item_id' => $variation_id,
+            'vendor_user_id'  => $vendor_id
+        ])->row_array();
+
+        if ($exists) {
+            continue;
+        }
+
+        /* INSERT VENDOR PRODUCT */
+
+        $insert = [
+            'item_id'         => $product_id,
+            'section_id'      => 0,
+            'section_item_id' => $variation_id,
+            'price'           => $price,
+            'stock'           => $stock,
+            'discount'        => $discount,
+            'tax_id'          => $tax_id,
+            'vendor_user_id'  => $vendor_id,
+            'created_at'      => date('Y-m-d H:i:s'),
+            'created_user_id' => $this->ion_auth->get_user_id()
+        ];
+
+        $this->db->insert("vendor_product_variants", $insert);
+    }
+
+    $this->session->set_userdata('upload_bulk_status', [
+        "success" => "Excel imported successfully"
+    ]);
+	redirect($_SERVER['HTTP_REFERER']);
+}
+	
 
 	        
 }
