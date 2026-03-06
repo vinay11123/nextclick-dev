@@ -70,15 +70,6 @@ td:nth-child(8){
     						<input type="text" id="noofrows" name="noofrows" placeholder="rows" value="<?php echo $noofrows;?>" class="form-control">
     					</div>
 
-    					<!-- <div class="form-group col-2">
-    						<label for="noofrows">Availability</label>
-    						  <select class="form-control"   id="statusdata" name="statusdata">
-                          
-                            <option value="1" >Available</option>
-                             <option value="0" >Unavailable</option>
-                        </select>
-    					</div>-->
-
    						<div class="form-group col-3">
     						<label for="noofrows">Shop By Category</label>
     	  					<select class="form-control" onChange="shop_by_category_changed1(this.value);" id="sub_cat_id" name="sub_cat_id" required="" >
@@ -94,7 +85,10 @@ td:nth-child(8){
 								if($sl != ''){
 									for($r=0;$r<count($sl);$r++){
 								?>
-								<option value="<?php echo $sl[$r]['id']; ?>" <?php if($sl[$r]['id']== $sub_items['sub_cat_id']){ echo "selected";} ?>><?=$sl[$r]['name'];?></option>
+								<option value="<?php echo $sl[$r]['id']; ?>"
+								<?php if($sl[$r]['id']== $sub_cat_id){ echo "selected";} ?>>
+								<?=$sl[$r]['name'];?>
+								</option>
 							<?php }}?>
 							</optgroup>
 									<?php
@@ -103,7 +97,10 @@ td:nth-child(8){
 									?>
 								<?php 
 								foreach ($sub_categories as $item):?>
-							<option value="<?php echo $item['id'];?>"  ><?php echo $item['name']?></option>
+							<option value="<?php echo $item['id'];?>"
+							<?php if($item['id']== $sub_cat_id){ echo "selected";} ?>>
+							<?php echo $item['name']?>
+							</option>
 								<?php endforeach;?>
 														<?php }?>
 													</select>					 
@@ -111,15 +108,24 @@ td:nth-child(8){
 
 						<div class="form-group col-md-3">
 							 <label>Menu</label>
-						 <!-- <label>
-							 <?=(($this->ion_auth->is_admin())? 'Menu' : $this->category_model->get_cat_desc_account_name($vendor_category_id,'item_menu'));?>
-							</label>  -->
-                        		<select class="form-control " id="menu_id" name="menu_id" onChange="menu_changed(this.value);" required="" >
-									<option value="" selected disabled>--select--</option>
-										
+                        		<select class="form-control" id="menu_id" name="menu_id" onChange="menu_changed(this.value);" required>
+
+								<option value="">--select--</option>
+
+								<?php if(!empty($menus)){ ?>
+									<?php foreach($menus as $menu){ ?>
+
+										<option value="<?php echo $menu['id']; ?>"
+										<?php if($menu['id'] == $menu_id){ echo "selected"; } ?>>
+
+										<?php echo $menu['name']; ?>
+
+										</option>
+
+									<?php } ?>
+								<?php } ?>
+
 								</select>
-							<div class="invalid-feedback"><?=(($this->ion_auth->is_admin())? 'New Menu Name' : $this->category_model->get_cat_desc_account_name($vendor_category_id,'item_menu'));?>?</div>
-							<?php echo form_error('menu_id','<div style="color:red>"','</div>');?>
 						</div>
                     
  
