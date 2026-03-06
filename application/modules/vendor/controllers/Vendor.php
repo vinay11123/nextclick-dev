@@ -1729,7 +1729,6 @@ public function import_vendor_products($file, $vendor_id)
 				'tax_id'   => $tax_id,
 				'updated_at' => date('Y-m-d H:i:s')
 			]);
-
 		} else {
 
 			/* INSERT NEW PRODUCT */
